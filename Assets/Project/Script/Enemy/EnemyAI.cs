@@ -314,14 +314,8 @@ public class EnemyAI : MonoBehaviour
 
         if (playerHealth != null)
         {
-            PlayerStatsManager playerStats = player.GetComponent<PlayerStatsManager>();
-            float finalDamage = attackDamage;
-
-            if (playerStats != null)
-                finalDamage = playerStats.CalculateDamageReduction(attackDamage);
-
-            Debug.Log($"⚔️ {gameObject.name} dealing {finalDamage} damage to player at distance {distanceToPlayer:F2}m");
-            playerHealth.TakeDamage(finalDamage);
+            Debug.Log($"⚔️ {gameObject.name} dealing {attackDamage} damage to player at distance {distanceToPlayer:F2}m");
+            playerHealth.TakeDamage(attackDamage);
         }
         else
         {

@@ -1,0 +1,121 @@
+=== TROUBLESHOOTING GUIDE - SNIPER & HEALTH BAR ===
+
+MASALAH: Sniper tidak bisa menembak musuh & Health bar tidak terlihat
+
+LANGKAH-LANGKAH DEBUGGING:
+
+1. CHECK ENEMY SETUP
+   ----------------------
+   Menu: Tools > Debug > Check Enemy Setup
+   
+   Harus memastikan:
+   - Enemy punya component EnemyHealth ✅
+   - Enemy punya Collider (BoxCollider/CapsuleCollider/etc) ✅
+   - Enemy ada di Layer "Enemy" ✅
+   
+   Jika tidak:
+   - Add EnemyHealth component ke enemy
+   - Add Collider ke enemy
+   - Set Layer ke "Enemy"
+
+2. CHECK SNIPER SETUP
+   --------------------
+   Menu: Tools > Debug > Check Sniper Setup
+   
+   Harus memastikan:
+   - SniperCombat component ada ✅
+   - Enemy Layer Mask di Inspector TIDAK "Nothing" ✅
+   - Enemy Layer Mask harus set ke "Enemy" layer ✅
+   
+   Cara fix:
+   a. Select Player GameObject
+   b. Find SniperCombat component
+   c. Set "Enemy Layer" dropdown ke "Enemy"
+   d. Sama untuk SniperAutoTargeting component
+
+3. PLAY MODE - CHECK CONSOLE
+   ---------------------------
+   Saat play, akan muncul debug log:
+   
+   SAAT START:
+   - "🔨 AUTO-CREATING health bar for [Enemy Name]"
+   - "✅ Health bar CREATED for [Enemy Name]"
+   
+   SAAT SHOOT (Press Attack):
+   - "🔫 SNIPER SHOT FIRED!"
+   - "🔍 SCAN: Found X colliders"
+   - "🎯 Final targets in range: X"
+   - "🎯 Raycasting from ... direction ..."
+   
+   SAAT HIT:
+   - "✅ HIT [Enemy Name] at ..."
+   - "EnemyHealth component: FOUND"
+   - "💥 Dealing X damage to [Enemy Name]"
+   - "💔 [Enemy Name] TOOK X DAMAGE! HP: X/Y"
+   - "📊 Updating health bar: X/Y"
+
+4. VISUAL CHECK IN SCENE VIEW
+   ----------------------------
+   a. Select Player
+   b. Scene view akan tampilkan Gizmos:
+      - Cyan ray = precision shot direction
+      - Yellow sphere = detection range
+      - Red ray = camera forward direction
+   
+   c. Select Enemy
+   d. Pastikan terlihat:
+      - Green collider outline
+      - Health bar canvas (small white box di atas head)
+
+5. MANUAL TEST HEALTH BAR
+   ------------------------
+   a. Select enemy di Hierarchy
+   b. Add Component: HealthBarTester
+   c. Play game
+   d. Press [T] untuk test damage
+   e. Press [Y] untuk test heal
+   f. Lihat health bar berubah
+
+6. COMMON ISSUES & FIXES
+   ----------------------
+   
+   Issue: "Found 0 colliders"
+   Fix: Enemy Layer Mask di Sniper = Nothing!
+        → Set ke "Enemy" layer
+   
+   Issue: "EnemyHealth component: NOT FOUND"
+   Fix: Enemy tidak punya EnemyHealth component
+        → Add EnemyHealth component
+   
+   Issue: "Health bar UI is NULL"
+   Fix: autoCreateHealthBar = false
+        → Set autoCreateHealthBar = true di Inspector
+   
+   Issue: Health bar ada tapi tidak terlihat
+   Fix: - Check Canvas position di Scene view
+        - Pastikan tidak tertutup object lain
+        - Check Camera culling mask
+        - Scale terlalu kecil? Edit canvasRect.localScale
+
+7. LAYER SETUP (CRITICAL!)
+   ------------------------
+   Edit > Project Settings > Tags and Layers
+   
+   Pastikan ada layer "Enemy":
+   - User Layer 6 = "Enemy" (atau layer index lain)
+   
+   Semua enemy GameObject HARUS di layer "Enemy"!
+   
+   Cara cepat:
+   - Select all enemies di Hierarchy
+   - Inspector > Layer dropdown > "Enemy"
+
+8. IF STILL NOT WORKING
+   ---------------------
+   Kirim screenshot dari:
+   1. Console logs saat shooting
+   2. Inspector > Player > SniperCombat (Enemy Layer field)
+   3. Inspector > Enemy > (Layer dropdown & EnemyHealth)
+   4. Scene view dengan Player selected (show Gizmos)
+
+DEBUG LOGS WILL BE REMOVED AFTER ISSUE IS FIXED!
