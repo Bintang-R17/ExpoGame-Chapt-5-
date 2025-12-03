@@ -14,10 +14,10 @@ public class EnemyHealthBarUI : MonoBehaviour
     [SerializeField] private CanvasGroup canvasGroup;
     
     [Header("Settings")]
-    [SerializeField] private Vector3 offset = new Vector3(0, 2f, 0);
-    [SerializeField] private float hideDelay = 2f;
-    [SerializeField] private bool alwaysShow = false;
-    [SerializeField] private bool showHealthText = true;
+    [SerializeField] private Vector3 offset = new Vector3(0, 2.2f, 0);
+    [SerializeField] private float hideDelay = 3f;
+    [SerializeField] private bool alwaysShow = true;
+    [SerializeField] private bool showHealthText = false;
     
     [Header("Colors")]
     [SerializeField] private Color healthyColor = new Color(0f, 1f, 0f, 1f); // Green
@@ -60,14 +60,8 @@ public class EnemyHealthBarUI : MonoBehaviour
         // Validate setup
         if (healthSlider == null)
         {
-            Debug.LogWarning("EnemyHealthBarUI: No Slider found! Disabling component.", gameObject);
             enabled = false;
             return;
-        }
-        
-        if (healthSlider.fillRect == null)
-        {
-            Debug.LogWarning("EnemyHealthBarUI: Slider.fillRect not assigned! Please configure the Slider component.", gameObject);
         }
     }
     
@@ -118,15 +112,18 @@ public class EnemyHealthBarUI : MonoBehaviour
     {
         if (healthSlider == null) return;
         
-        healthSlider.maxValue = max;
-        targetHealth = current;
+        // Use normalized values (0-1)
+        float normalizedHealth = current / max;
+        healthSlider.maxValue = 1f;
+        targetHealth = normalizedHealth;
         
         if (!enableSmoothFill)
         {
-            currentDisplayHealth = current;
-            healthSlider.value = current;
-            UpdateHealthColor(current / max);
+            currentDisplayHealth = normalizedHealth;
+            healthSlider.value = normalizedHealth;
         }
+        
+        UpdateHealthColor(normalizedHealth);
         
         // Update text
         if (healthText != null && showHealthText)
@@ -142,7 +139,7 @@ public class EnemyHealthBarUI : MonoBehaviour
         }
         
         // Damage flash effect
-        if (enableDamageFlash && current < currentDisplayHealth)
+        if (enableDamageFlash && normalizedHealth < currentDisplayHealth)
         {
             StopAllCoroutines();
             StartCoroutine(DamageFlashEffect());

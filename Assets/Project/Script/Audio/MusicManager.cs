@@ -37,7 +37,16 @@ public class MusicManager : MonoBehaviour
         }
 
         instance = this;
-        DontDestroyOnLoad(gameObject);
+        // Ensure we mark the ROOT GameObject as persistent
+        if (transform.parent != null)
+        {
+            Debug.LogWarning("MusicManager: GameObject is not root. Marking root GameObject as DontDestroyOnLoad.");
+            DontDestroyOnLoad(transform.root.gameObject);
+        }
+        else
+        {
+            DontDestroyOnLoad(gameObject);
+        }
 
         // Setup AudioSource if not assigned
         if (audioSource == null)

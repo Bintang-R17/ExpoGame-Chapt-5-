@@ -60,18 +60,17 @@ public class EnemyHealth : MonoBehaviour
             
             if (healthBarUI == null && autoCreateHealthBar)
             {
-                Debug.Log($"🔨 Creating health bar for {gameObject.name}");
+                Debug.Log($"🔨 AUTO-CREATING health bar for {gameObject.name}");
                 CreateHealthBar();
+            }
+            else if (!autoCreateHealthBar)
+            {
+                Debug.LogWarning($"⚠️ autoCreateHealthBar is FALSE for {gameObject.name}!");
             }
             
             if (healthBarUI != null)
             {
                 healthBarUI.SetHealth(currentHealth, maxHealth);
-                Debug.Log($"✅ {gameObject.name} health bar initialized: {currentHealth}/{maxHealth}");
-            }
-            else
-            {
-                Debug.LogWarning($"⚠️ {gameObject.name} health bar UI not found!");
             }
         }
     }
@@ -81,7 +80,7 @@ public class EnemyHealth : MonoBehaviour
         // Create canvas for world space health bar
         GameObject healthBarObj = new GameObject("HealthBar");
         healthBarObj.transform.SetParent(transform);
-        healthBarObj.transform.localPosition = Vector3.zero;
+        healthBarObj.transform.localPosition = new Vector3(0, 2.2f, 0); // Position above enemy
         
         Canvas canvas = healthBarObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
@@ -89,38 +88,47 @@ public class EnemyHealth : MonoBehaviour
         CanvasScaler scaler = healthBarObj.AddComponent<CanvasScaler>();
         scaler.dynamicPixelsPerUnit = 10f;
         
-        // Set canvas size
+        // Set canvas size (wider and thinner)
         RectTransform canvasRect = healthBarObj.GetComponent<RectTransform>();
-        canvasRect.sizeDelta = new Vector2(2f, 0.3f);
+        canvasRect.sizeDelta = new Vector2(2f, 0.3f); // Bigger size
+        canvasRect.localScale = new Vector3(0.01f, 0.01f, 0.01f);
         
         // Create background
         GameObject bgObj = new GameObject("Background");
-        bgObj.transform.SetParent(healthBarObj.transform);
+        bgObj.transform.SetParent(healthBarObj.transform, false);
         Image bgImage = bgObj.AddComponent<Image>();
-        bgImage.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
+        bgImage.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
         RectTransform bgRect = bgObj.GetComponent<RectTransform>();
         bgRect.anchorMin = Vector2.zero;
         bgRect.anchorMax = Vector2.one;
         bgRect.offsetMin = Vector2.zero;
         bgRect.offsetMax = Vector2.zero;
         
+        // Create border
+        GameObject borderObj = new GameObject("Border");
+        borderObj.transform.SetParent(healthBarObj.transform, false);
+        UnityEngine.UI.Outline outline = borderObj.AddComponent<UnityEngine.UI.Outline>();
+        outline.effectColor = new Color(0f, 0f, 0f, 1f);
+        outline.effectDistance = new Vector2(2, 2);
+        
         // Create slider
         GameObject sliderObj = new GameObject("Slider");
-        sliderObj.transform.SetParent(healthBarObj.transform);
+        sliderObj.transform.SetParent(healthBarObj.transform, false);
         Slider slider = sliderObj.AddComponent<Slider>();
         slider.minValue = 0;
-        slider.maxValue = maxHealth;
-        slider.value = currentHealth;
+        slider.maxValue = 1f; // Use normalized 0-1
+        slider.value = 1f;
+        slider.transition = UnityEngine.UI.Selectable.Transition.None;
         
         RectTransform sliderRect = sliderObj.GetComponent<RectTransform>();
         sliderRect.anchorMin = Vector2.zero;
         sliderRect.anchorMax = Vector2.one;
-        sliderRect.offsetMin = new Vector2(5, 5);
-        sliderRect.offsetMax = new Vector2(-5, -5);
+        sliderRect.offsetMin = new Vector2(3, 3);
+        sliderRect.offsetMax = new Vector2(-3, -3);
         
         // Create fill area
         GameObject fillAreaObj = new GameObject("Fill Area");
-        fillAreaObj.transform.SetParent(sliderObj.transform);
+        fillAreaObj.transform.SetParent(sliderObj.transform, false);
         RectTransform fillAreaRect = fillAreaObj.AddComponent<RectTransform>();
         fillAreaRect.anchorMin = Vector2.zero;
         fillAreaRect.anchorMax = Vector2.one;
@@ -129,11 +137,12 @@ public class EnemyHealth : MonoBehaviour
         
         // Create fill
         GameObject fillObj = new GameObject("Fill");
-        fillObj.transform.SetParent(fillAreaObj.transform);
+        fillObj.transform.SetParent(fillAreaObj.transform, false);
         Image fillImage = fillObj.AddComponent<Image>();
-        fillImage.color = Color.green;
+        fillImage.color = new Color(0f, 1f, 0f, 1f); // Bright green
         fillImage.type = Image.Type.Filled;
         fillImage.fillMethod = Image.FillMethod.Horizontal;
+        fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
         
         RectTransform fillRect = fillObj.GetComponent<RectTransform>();
         fillRect.anchorMin = Vector2.zero;
@@ -143,11 +152,31 @@ public class EnemyHealth : MonoBehaviour
         
         slider.fillRect = fillRect;
         
+        // Add canvas group for fading
+        CanvasGroup canvasGroup = healthBarObj.AddComponent<CanvasGroup>();
+        canvasGroup.alpha = 1f;
+        
         // Add UI script
         healthBarUI = healthBarObj.AddComponent<EnemyHealthBarUI>();
+        
+        // Use reflection to set private fields
+        var fillImageField = typeof(EnemyHealthBarUI).GetField("fillImage", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var sliderField = typeof(EnemyHealthBarUI).GetField("healthSlider", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var bgField = typeof(EnemyHealthBarUI).GetField("backgroundImage", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var cgField = typeof(EnemyHealthBarUI).GetField("canvasGroup", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        
+        if (fillImageField != null) fillImageField.SetValue(healthBarUI, fillImage);
+        if (sliderField != null) sliderField.SetValue(healthBarUI, slider);
+        if (bgField != null) bgField.SetValue(healthBarUI, bgImage);
+        if (cgField != null) cgField.SetValue(healthBarUI, canvasGroup);
+        
         healthBarUI.SetHealth(currentHealth, maxHealth);
         
-        Debug.Log($"✅ Created health bar for {gameObject.name}");
+        Debug.Log($"✅ Health bar CREATED for {gameObject.name} | Canvas position: {healthBarObj.transform.position}");
     }
 
     public void TakeDamage(float damage)
@@ -157,19 +186,18 @@ public class EnemyHealth : MonoBehaviour
         currentHealth -= damage;
         currentHealth = Mathf.Max(0, currentHealth);
         
-        // Show damage feedback
-        Debug.Log($"⚔️ {gameObject.name} took {damage} damage! HP: {currentHealth}/{maxHealth}");
+        Debug.Log($"💔 {gameObject.name} TOOK {damage} DAMAGE! HP: {currentHealth}/{maxHealth} ({GetHealthPercentage() * 100f:F0}%)");
 
         // Update health bar UI
         if (healthBarUI != null && showHealthBar)
         {
+            Debug.Log($"📊 Updating health bar: {currentHealth}/{maxHealth}");
             healthBarUI.SetHealth(currentHealth, maxHealth);
             healthBarUI.Show();
-            Debug.Log($"📊 Updated health bar: {currentHealth}/{maxHealth}");
         }
-        else if (showHealthBar)
+        else
         {
-            Debug.LogWarning($"⚠️ Health bar UI is null for {gameObject.name}!");
+            Debug.LogWarning($"⚠️ Health bar UI is NULL or showHealthBar is false! UI: {healthBarUI}, Show: {showHealthBar}");
         }
         
         // Spawn hit effect

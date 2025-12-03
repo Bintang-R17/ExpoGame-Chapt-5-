@@ -9,12 +9,10 @@ public class PlaneVirtualCamera : MonoBehaviour
     
     [Header("Camera Settings")]
     [SerializeField] private Vector3 followOffset = new Vector3(0, 3, -12);
-    [SerializeField] private bool useLocalSpace = true;
     [SerializeField] private float damping = 1f;
     
     [Header("Look Settings")]
     [SerializeField] private Vector3 lookAtOffset = new Vector3(0, 0, 5);
-    [SerializeField] private bool trackObjectRotation = true;
     
     [Header("Noise Settings (Camera Shake)")]
     [SerializeField] private bool enableNoise = true;

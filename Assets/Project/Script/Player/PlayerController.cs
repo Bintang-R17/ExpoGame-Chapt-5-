@@ -8,11 +8,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float rotationSpeed = 10f;
 
     [Header("Jump")]
-    [SerializeField] private float jumpForce = 8f;
-    [SerializeField] private float jumpDelay = 0.75f; // Delay sebelum apply force
-    [SerializeField] private bool useRootMotionForJump = true; // Toggle root motion untuk lompat
+    [SerializeField] private float jumpForce = 5f;
     [SerializeField] private Transform groundCheck;
-    [SerializeField] private float groundDistance = 0.3f;
+    [SerializeField] private float groundDistance = 0.2f;
     [SerializeField] private LayerMask groundMask;
 
     [Header("Animation")]
@@ -27,7 +25,6 @@ public class PlayerController : MonoBehaviour
 
     // State
     private bool isGrounded;
-    private bool isJumping; // Flag untuk prevent double jump during animation
 
     // Animation Hashes
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
@@ -50,12 +47,6 @@ public class PlayerController : MonoBehaviour
         if (rb != null)
         {
             rb.freezeRotation = true;
-        }
-
-        // Disable root motion by default (hanya enable saat lompat jika useRootMotionForJump = true)
-        if (animator != null)
-        {
-            animator.applyRootMotion = false;
         }
     }
 
@@ -83,69 +74,25 @@ public class PlayerController : MonoBehaviour
 
     public void OnJump(InputValue value)
     {
-        if (value.isPressed && isGrounded && !isJumping)
+        if (value.isPressed && isGrounded)
         {
-            StartCoroutine(JumpWithDelay());
-        }
-    }
-
-    System.Collections.IEnumerator JumpWithDelay()
-    {
-        isJumping = true;
-        
-        // Enable root motion untuk lompat jika diaktifkan
-        if (useRootMotionForJump && animator != null)
-        {
-            animator.applyRootMotion = true;
-        }
-        
-        // Trigger animation first
-        if (animator != null)
-        {
-            animator.SetTrigger(JumpHash);
-        }
-        
-        // Wait for animation to reach jump point
-        yield return new WaitForSeconds(jumpDelay);
-        
-        // Apply physics force (vertical boost)
-        // Jika pakai root motion, horizontal movement sudah dari animasi
-        if (useRootMotionForJump)
-        {
-            // Hanya tambah sedikit boost vertical jika perlu
-            rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
-            rb.AddForce(Vector3.up * jumpForce * 0.5f, ForceMode.Impulse); // Kurangi force karena animasi sudah handle
-        }
-        else
-        {
-            // Full physics jump seperti sebelumnya
-            rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        }
-        
-        // Reset jump flag after landing
-        yield return new WaitUntil(() => isGrounded);
-        isJumping = false;
-        
-        // Disable root motion setelah landing
-        if (useRootMotionForJump && animator != null)
-        {
-            animator.applyRootMotion = false;
+            Jump();
         }
     }
 
     void Jump()
     {
-        // Legacy method - now just calls coroutine
-        if (!isJumping)
+        rb.linearVelocity = new Vector3(rb.linearVelocity.x, jumpForce, rb.linearVelocity.z);
+        
+        if (animator != null)
         {
-            StartCoroutine(JumpWithDelay());
+            animator.SetTrigger(JumpHash);
         }
     }
 
     void ApplyMovement()
     {
-        // Calculate camera-relative direction
+        // Camera-relative movement
         Vector3 camForward = mainCam.transform.forward;
         camForward.y = 0f;
         camForward.Normalize();
@@ -156,13 +103,13 @@ public class PlayerController : MonoBehaviour
 
         Vector3 moveDirection = (camForward * moveInput.y + camRight * moveInput.x).normalized;
 
-        // Move character
+        // Apply movement
+        Vector3 movement = moveDirection * moveSpeed;
+        rb.linearVelocity = new Vector3(movement.x, rb.linearVelocity.y, movement.z);
+
+        // Rotate character
         if (moveDirection.magnitude > 0.1f)
         {
-            Vector3 movement = moveDirection * moveSpeed;
-            rb.linearVelocity = new Vector3(movement.x, rb.linearVelocity.y, movement.z);
-
-            // Rotate character
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
         }
@@ -170,46 +117,13 @@ public class PlayerController : MonoBehaviour
 
     void UpdateAnimation()
     {
-        // Re-get animator in case it changed (for role switching)
-        if (animator == null || !animator.gameObject.activeInHierarchy)
-            animator = GetComponentInChildren<Animator>();
-        
         if (animator == null)
             return;
 
         animator.SetFloat(SpeedHash, moveInput.magnitude);
         animator.SetBool(IsGroundedHash, isGrounded);
     }
-    
-    // Set animator (dipanggil dari PlayerRole saat ganti character model)
-    public void SetAnimator(Animator newAnimator)
-    {
-        animator = newAnimator;
-    }
 
-    // Public methods for role system
-    public void SetMaxSpeed(float speed)
-    {
-        moveSpeed = speed;
-    }
-    
-    public void SetJumpForce(float force)
-    {
-        jumpForce = force;
-    }
-    
-    public float GetMaxSpeed() => moveSpeed;
-    public float GetJumpForce() => jumpForce;
-    
-    // Public jump method - dapat dipanggil dari script lain
-    public void PerformJump()
-    {
-        if (isGrounded)
-        {
-            Jump();
-        }
-    }
-    
     public bool IsGrounded() => isGrounded;
 
 #if UNITY_EDITOR

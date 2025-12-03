@@ -19,7 +19,6 @@ public class ArcadePlaneController : MonoBehaviour
     [SerializeField] private float pitchSpeed = 50f;   // Up/Down (Left Stick Y)
     [SerializeField] private float rollSpeed = 100f;    // Left/Right tilt (Left Stick X)
     [SerializeField] private float yawSpeed = 30f;      // Turn left/right (Right Stick X)
-    [SerializeField] private float bankAmount = 45f;    // Auto-tilt saat belok
     [SerializeField] private bool invertPitch = false;  // Invert Y axis
     [SerializeField] private bool invertYaw = false;    // Invert yaw axis
     
@@ -42,7 +41,6 @@ public class ArcadePlaneController : MonoBehaviour
     [SerializeField] private float motionSensitivity = 2f;        // Sensitivitas gyro
     [SerializeField] private float motionPitchMultiplier = 1f;    // Multiplier pitch dari tilt depan/belakang
     [SerializeField] private float motionRollMultiplier = 1f;     // Multiplier roll dari tilt kiri/kanan
-    [SerializeField] private float motionYawMultiplier = 0.5f;    // Multiplier yaw dari rotasi
     [SerializeField] private bool motionOverrideStick = false;    // Motion menggantikan stick input sepenuhnya
     [SerializeField] private float motionDeadzone = 0.05f;        // Dead zone untuk motion kecil
     
