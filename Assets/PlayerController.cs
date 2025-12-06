@@ -147,6 +147,24 @@ namespace PlayerControllers
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""SwitchWeapons"",
+                    ""type"": ""Button"",
+                    ""id"": ""e5e6f43f-5356-4ca2-bf56-d3c86dad28b5"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""TargetCam"",
+                    ""type"": ""Button"",
+                    ""id"": ""5b417e84-70db-4df9-9f3b-87e21294fac1"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -334,6 +352,39 @@ namespace PlayerControllers
                     ""processors"": """",
                     ""groups"": """",
                     ""action"": ""Look"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""0eba0c42-acfb-407e-ac36-d21d4c2db28f"",
+                    ""path"": ""<Gamepad>/buttonNorth"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""SwitchWeapons"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""5b950136-8712-49ef-9f0b-f25ee4809b78"",
+                    ""path"": ""<Gamepad>/dpad/right"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""TargetCam"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""c2cbbaa5-97a5-4ff8-a8cc-4bfaaafcc8b2"",
+                    ""path"": ""<Gamepad>/dpad/left"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""TargetCam"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -642,6 +693,8 @@ namespace PlayerControllers
             m_Player_Run = m_Player.FindAction("Run", throwIfNotFound: true);
             m_Player_Skill1 = m_Player.FindAction("Skill1", throwIfNotFound: true);
             m_Player_Look = m_Player.FindAction("Look", throwIfNotFound: true);
+            m_Player_SwitchWeapons = m_Player.FindAction("SwitchWeapons", throwIfNotFound: true);
+            m_Player_TargetCam = m_Player.FindAction("TargetCam", throwIfNotFound: true);
             // UI
             m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
             m_UI_Newaction = m_UI.FindAction("New action", throwIfNotFound: true);
@@ -739,6 +792,8 @@ namespace PlayerControllers
         private readonly InputAction m_Player_Run;
         private readonly InputAction m_Player_Skill1;
         private readonly InputAction m_Player_Look;
+        private readonly InputAction m_Player_SwitchWeapons;
+        private readonly InputAction m_Player_TargetCam;
         /// <summary>
         /// Provides access to input actions defined in input action map "Player".
         /// </summary>
@@ -774,6 +829,14 @@ namespace PlayerControllers
             /// Provides access to the underlying input action "Player/Look".
             /// </summary>
             public InputAction @Look => m_Wrapper.m_Player_Look;
+            /// <summary>
+            /// Provides access to the underlying input action "Player/SwitchWeapons".
+            /// </summary>
+            public InputAction @SwitchWeapons => m_Wrapper.m_Player_SwitchWeapons;
+            /// <summary>
+            /// Provides access to the underlying input action "Player/TargetCam".
+            /// </summary>
+            public InputAction @TargetCam => m_Wrapper.m_Player_TargetCam;
             /// <summary>
             /// Provides access to the underlying input action map instance.
             /// </summary>
@@ -818,6 +881,12 @@ namespace PlayerControllers
                 @Look.started += instance.OnLook;
                 @Look.performed += instance.OnLook;
                 @Look.canceled += instance.OnLook;
+                @SwitchWeapons.started += instance.OnSwitchWeapons;
+                @SwitchWeapons.performed += instance.OnSwitchWeapons;
+                @SwitchWeapons.canceled += instance.OnSwitchWeapons;
+                @TargetCam.started += instance.OnTargetCam;
+                @TargetCam.performed += instance.OnTargetCam;
+                @TargetCam.canceled += instance.OnTargetCam;
             }
 
             /// <summary>
@@ -847,6 +916,12 @@ namespace PlayerControllers
                 @Look.started -= instance.OnLook;
                 @Look.performed -= instance.OnLook;
                 @Look.canceled -= instance.OnLook;
+                @SwitchWeapons.started -= instance.OnSwitchWeapons;
+                @SwitchWeapons.performed -= instance.OnSwitchWeapons;
+                @SwitchWeapons.canceled -= instance.OnSwitchWeapons;
+                @TargetCam.started -= instance.OnTargetCam;
+                @TargetCam.performed -= instance.OnTargetCam;
+                @TargetCam.canceled -= instance.OnTargetCam;
             }
 
             /// <summary>
@@ -1154,6 +1229,20 @@ namespace PlayerControllers
             /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
             /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
             void OnLook(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "SwitchWeapons" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnSwitchWeapons(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "TargetCam" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnTargetCam(InputAction.CallbackContext context);
         }
         /// <summary>
         /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

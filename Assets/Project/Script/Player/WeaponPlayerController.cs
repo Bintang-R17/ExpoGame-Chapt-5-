@@ -20,7 +20,7 @@ public class WeaponPlayerController : MonoBehaviour
     
     private PlayerControllers.PlayerInput playerInputActions;
     private InputAction attackAction;
-    private InputAction movementAction;
+    private InputAction switchWeaponAction;
     
     private void Awake()
     {
@@ -36,20 +36,29 @@ public class WeaponPlayerController : MonoBehaviour
     
     private void OnEnable()
     {
+        if (playerInputActions == null) return;
+        
         playerInputActions.Enable();
         
         // Attack dengan Punch button (buttonEast di gamepad / Mouse Left di keyboard)
         attackAction = playerInputActions.Player.Punch;
-        attackAction.performed += OnAttackPerformed;
+        if (attackAction != null)
+            attackAction.performed += OnAttackPerformed;
         
-        // Weapon switching dengan movement (D-pad atau Left Stick)
-        movementAction = playerInputActions.Player.Movement;
+        // Weapon switching dengan SwitchWeapons action (buttonNorth/Triangle)
+        switchWeaponAction = playerInputActions.Player.SwitchWeapons;
+        if (switchWeaponAction != null)
+            switchWeaponAction.performed += OnSwitchWeapon;
     }
     
     private void OnDisable()
     {
-        attackAction.performed -= OnAttackPerformed;
-        playerInputActions.Disable();
+        if (attackAction != null)
+            attackAction.performed -= OnAttackPerformed;
+        if (switchWeaponAction != null)
+            switchWeaponAction.performed -= OnSwitchWeapon;
+        if (playerInputActions != null)
+            playerInputActions.Disable();
     }
     
     private void Start()
@@ -65,43 +74,20 @@ public class WeaponPlayerController : MonoBehaviour
         }
     }
     
-    private void Update()
-    {
-        // Handle weapon switching dengan D-pad/stick horizontal
-        HandleWeaponSwitching();
-    }
-    
     /// <summary>
-    /// Handle weapon switching dengan movement input horizontal
+    /// Handle weapon switching saat L1 ditekan - toggle between weapons
     /// </summary>
-    private void HandleWeaponSwitching()
+    private void OnSwitchWeapon(InputAction.CallbackContext context)
     {
-        Vector2 movement = movementAction.ReadValue<Vector2>();
-        
-        // Switch ke Rifle dengan arah kiri (D-pad left atau stick left)
-        if (movement.x < -0.8f && !isProcessingSwitch)
-        {
-            SwitchToRifle();
-            StartCoroutine(SwitchCooldown());
-        }
-        // Switch ke Sword dengan arah kanan (D-pad right atau stick right)
-        else if (movement.x > 0.8f && !isProcessingSwitch)
+        // Toggle antara rifle dan sword
+        if (currentWeapon == rifleWeapon)
         {
             SwitchToSword();
-            StartCoroutine(SwitchCooldown());
         }
-    }
-    
-    private bool isProcessingSwitch = false;
-    
-    /// <summary>
-    /// Cooldown untuk mencegah switch berulang kali
-    /// </summary>
-    private System.Collections.IEnumerator SwitchCooldown()
-    {
-        isProcessingSwitch = true;
-        yield return new WaitForSeconds(0.3f);
-        isProcessingSwitch = false;
+        else
+        {
+            SwitchToRifle();
+        }
     }
     
     /// <summary>
@@ -111,8 +97,128 @@ public class WeaponPlayerController : MonoBehaviour
     {
         if (currentWeapon != null)
         {
-            currentWeapon.Attack();
+            // Check for timing window
+            TimingBarUI timingUI = TimingBarUI.Instance;
+            if (timingUI != null && timingUI.IsActive())
+            {
+                ShieldTimingResult result = timingUI.CheckTiming();
+                ProcessTimingAttack(result);
+            }
+            else
+            {
+                // Normal attack without timing
+                currentWeapon.Attack();
+            }
         }
+    }
+    
+    /// <summary>
+    /// Process attack with timing window result
+    /// </summary>
+    private void ProcessTimingAttack(ShieldTimingResult result)
+    {
+        TimingBarUI timingUI = TimingBarUI.Instance;
+        if (timingUI == null) return;
+        
+        Transform target = timingUI.GetCurrentTarget();
+        if (target == null) return;
+        
+        ShieldCycle shieldCycle = target.GetComponent<ShieldCycle>();
+        if (shieldCycle == null)
+        {
+            // No shield cycle, normal attack
+            currentWeapon.Attack();
+            return;
+        }
+        
+        // Process based on timing result
+        switch (result)
+        {
+            case ShieldTimingResult.Perfect:
+                OnPerfectHit(target, shieldCycle);
+                break;
+                
+            case ShieldTimingResult.Good:
+                OnGoodHit(target, shieldCycle);
+                break;
+                
+            case ShieldTimingResult.Miss:
+                OnBlockedHit(target, shieldCycle);
+                break;
+        }
+        
+        // Don't hide timing bar - let EnemyTargetUI handle it
+        // Bar stays visible while enemy is locked
+    }
+    
+    /// <summary>
+    /// Handle perfect timing hit (Green zone: HP / 1)
+    /// </summary>
+    private void OnPerfectHit(Transform target, ShieldCycle shieldCycle)
+    {
+        Debug.Log($"<color=lime>⚡ PERFECT HIT on {target.name} - (HP / 1)!</color>");
+        
+        // Trigger perfect hit on shield cycle (damage calculated there)
+        shieldCycle.OnPerfectHit(0f);
+        
+        // Don't spawn bullet for Perfect/Good hits
+        // Damage is applied directly by ShieldCycle
+    }
+    
+    /// <summary>
+    /// Handle good timing hit (Yellow zone: HP / 4)
+    /// </summary>
+    private void OnGoodHit(Transform target, ShieldCycle shieldCycle)
+    {
+        Debug.Log($"<color=yellow>✓ GOOD HIT on {target.name} - (HP / 4)</color>");
+        
+        // Trigger good hit on shield cycle (damage calculated there)
+        shieldCycle.OnGoodHit(0f);
+        
+        // Don't spawn bullet for Perfect/Good hits
+        // Damage is applied directly by ShieldCycle
+    }
+    
+    /// <summary>
+    /// Handle blocked hit - no damage, trigger counter
+    /// </summary>
+    private void OnBlockedHit(Transform target, ShieldCycle shieldCycle)
+    {
+        Debug.Log($"<color=red>✗ BLOCKED by {target.name} - No damage!</color>");
+        
+        // Shield blocks attack - no damage, no bullet spawn
+        shieldCycle.OnBlockedHit();
+        
+        // Note: No weapon attack on blocked hits
+        // Player should time correctly to get Perfect/Good hits
+    }
+    
+    /// <summary>
+    /// Get current weapon damage value
+    /// </summary>
+    private float GetCurrentWeaponDamage()
+    {
+        if (currentWeapon == null) return 0f;
+        
+        MonoBehaviour weaponMono = currentWeapon as MonoBehaviour;
+        if (weaponMono == null) return 0f;
+        
+        // Try to get weapon data from different weapon types
+        SwordAttack sword = weaponMono as SwordAttack;
+        if (sword != null)
+        {
+            WeaponData data = sword.GetWeaponData();
+            return data != null ? data.damage : 0f;
+        }
+        
+        RifleAttack rifle = weaponMono as RifleAttack;
+        if (rifle != null)
+        {
+            WeaponData data = rifle.GetWeaponData();
+            return data != null ? data.damage : 0f;
+        }
+        
+        return 10f; // Default damage
     }
     
     /// <summary>

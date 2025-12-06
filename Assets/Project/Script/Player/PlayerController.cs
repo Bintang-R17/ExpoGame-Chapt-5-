@@ -13,6 +13,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float groundDistance = 0.2f;
     [SerializeField] private LayerMask groundMask;
 
+    [Header("Dash Settings")]
+    [SerializeField] private float dashDistance = 5f;
+    [SerializeField] private float dashDuration = 0.2f;
+    [SerializeField] private float dashCooldown = 1f;
+    [SerializeField] private TrailRenderer trailRenderer;
+
     [Header("Animation")]
     [SerializeField] private Animator animator;
 
@@ -25,11 +31,16 @@ public class PlayerController : MonoBehaviour
 
     // State
     private bool isGrounded;
+    private bool isDashing = false;
+    private float dashTimeLeft = 0f;
+    private float nextDashTime = 0f;
+    private Vector3 dashDirection;
 
     // Animation Hashes
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
     private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
     private static readonly int JumpHash = Animator.StringToHash("Jump");
+    private static readonly int DashHash = Animator.StringToHash("Dash");
 
     void Awake()
     {
@@ -54,11 +65,20 @@ public class PlayerController : MonoBehaviour
     {
         CheckGround();
         UpdateAnimation();
+        
+        if (isDashing)
+        {
+            PerformDash();
+        }
     }
 
     void FixedUpdate()
     {
-        ApplyMovement();
+        // Skip normal movement during dash
+        if (!isDashing)
+        {
+            ApplyMovement();
+        }
     }
 
     void CheckGround()
@@ -77,6 +97,14 @@ public class PlayerController : MonoBehaviour
         if (value.isPressed && isGrounded)
         {
             Jump();
+        }
+    }
+
+    public void OnSkill1(InputValue value)
+    {
+        if (value.isPressed)
+        {
+            StartDash();
         }
     }
 
@@ -122,6 +150,95 @@ public class PlayerController : MonoBehaviour
 
         animator.SetFloat(SpeedHash, moveInput.magnitude);
         animator.SetBool(IsGroundedHash, isGrounded);
+    }
+
+    /// <summary>
+    /// Start dash movement
+    /// </summary>
+    void StartDash()
+    {
+        if (Time.time < nextDashTime)
+        {
+            return; // Cooldown
+        }
+        
+        if (isDashing)
+        {
+            return; // Already dashing
+        }
+        
+        // Calculate dash direction
+        if (moveInput.magnitude < 0.1f)
+        {
+            // No input - dash forward
+            dashDirection = transform.forward;
+        }
+        else
+        {
+            // Dash in movement direction (camera-relative)
+            Vector3 camForward = mainCam.transform.forward;
+            camForward.y = 0f;
+            camForward.Normalize();
+            
+            Vector3 camRight = mainCam.transform.right;
+            camRight.y = 0f;
+            camRight.Normalize();
+            
+            dashDirection = (camForward * moveInput.y + camRight * moveInput.x).normalized;
+        }
+        
+        // Set dash state
+        isDashing = true;
+        dashTimeLeft = dashDuration;
+        nextDashTime = Time.time + dashCooldown;
+        
+        // Trigger animation
+        if (animator != null)
+        {
+            animator.SetTrigger(DashHash);
+        }
+        
+        // Enable trail
+        if (trailRenderer != null)
+        {
+            trailRenderer.emitting = true;
+        }
+    }
+    
+    /// <summary>
+    /// Perform dash movement
+    /// </summary>
+    void PerformDash()
+    {
+        dashTimeLeft -= Time.deltaTime;
+        
+        if (dashTimeLeft <= 0f)
+        {
+            EndDash();
+            return;
+        }
+        
+        // Calculate dash speed and movement
+        float dashSpeed = dashDistance / dashDuration;
+        Vector3 movement = dashDirection * dashSpeed * Time.deltaTime;
+        
+        // Apply movement via Rigidbody
+        rb.MovePosition(rb.position + movement);
+    }
+    
+    /// <summary>
+    /// End dash movement
+    /// </summary>
+    void EndDash()
+    {
+        isDashing = false;
+        dashTimeLeft = 0f;
+        
+        // Disable trail
+        if (trailRenderer != null)
+        {
+            trailRenderer.emitting = false;
+        }
     }
 
     public bool IsGrounded() => isGrounded;

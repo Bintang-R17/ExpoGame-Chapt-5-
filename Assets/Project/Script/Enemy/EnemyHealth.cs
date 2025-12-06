@@ -6,6 +6,11 @@ public class EnemyHealth : MonoBehaviour
     [Header("Health Settings")]
     [SerializeField] private float maxHealth = 100f;
     [SerializeField] private float currentHealth;
+    
+    [Header("Lock Requirement")]
+    [SerializeField] private bool requireLockToTakeDamage = true; // Harus di-lock untuk bisa kena damage
+    [SerializeField] private TargetingManager targetingManager;
+    private bool isShieldBlocking = false; // Shield sedang block (saat timing miss)
 
     [Header("UI")]
     [SerializeField] private EnemyHealthBarUI healthBarUI;
@@ -37,6 +42,12 @@ public class EnemyHealth : MonoBehaviour
         renderers = GetComponentsInChildren<Renderer>();
         rb = GetComponent<Rigidbody>();
         
+        // Auto-find TargetingManager
+        if (targetingManager == null)
+        {
+            targetingManager = FindAnyObjectByType<TargetingManager>();
+        }
+        
         // Store original colors
         if (enableHitFlash && renderers != null)
         {
@@ -53,14 +64,17 @@ public class EnemyHealth : MonoBehaviour
         // Setup health bar UI
         if (showHealthBar)
         {
+            Debug.Log($"[EnemyHealth] {gameObject.name} - Setting up health bar... showHealthBar=true");
+            
             if (healthBarUI == null)
             {
                 healthBarUI = GetComponentInChildren<EnemyHealthBarUI>();
+                Debug.Log($"[EnemyHealth] {gameObject.name} - Search result: {(healthBarUI != null ? "FOUND" : "NOT FOUND")}");
             }
             
             if (healthBarUI == null && autoCreateHealthBar)
             {
-                Debug.Log($"🔨 AUTO-CREATING health bar for {gameObject.name}");
+                Debug.Log($"<color=cyan>🔨 AUTO-CREATING health bar for {gameObject.name}</color>");
                 CreateHealthBar();
             }
             else if (!autoCreateHealthBar)
@@ -71,7 +85,17 @@ public class EnemyHealth : MonoBehaviour
             if (healthBarUI != null)
             {
                 healthBarUI.SetHealth(currentHealth, maxHealth);
+                healthBarUI.Show(); // Force show
+                Debug.Log($"<color=lime>✓ Health bar SHOWN for {gameObject.name}</color>");
             }
+            else
+            {
+                Debug.LogError($"<color=red>✗ Health bar is NULL for {gameObject.name}!</color>");
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"[EnemyHealth] {gameObject.name} - showHealthBar is FALSE!");
         }
     }
     
@@ -175,13 +199,38 @@ public class EnemyHealth : MonoBehaviour
         if (cgField != null) cgField.SetValue(healthBarUI, canvasGroup);
         
         healthBarUI.SetHealth(currentHealth, maxHealth);
+        healthBarUI.Show(); // Force show immediately
         
-        Debug.Log($"✅ Health bar CREATED for {gameObject.name} | Canvas position: {healthBarObj.transform.position}");
+        // Ensure GameObject is active
+        healthBarObj.SetActive(true);
+        
+        Debug.Log($"<color=lime>✅ Health bar CREATED for {gameObject.name}</color>");
+        Debug.Log($"  → Canvas position: {healthBarObj.transform.position}");
+        Debug.Log($"  → Canvas active: {healthBarObj.activeInHierarchy}");
+        Debug.Log($"  → Slider value: {slider.value}");
+        Debug.Log($"  → Canvas alpha: {canvasGroup.alpha}");
     }
 
     public void TakeDamage(float damage)
     {
         if (isDead) return;
+        
+        // Check if shield is blocking
+        if (isShieldBlocking)
+        {
+            Debug.Log($"<color=cyan>🛡️ {gameObject.name} SHIELD BLOCKED {damage} damage!</color>");
+            return; // HP locked - no damage
+        }
+        
+        // Check if this enemy is the locked target
+        if (requireLockToTakeDamage)
+        {
+            if (!IsLockedTarget())
+            {
+                Debug.Log($"<color=orange>🛡️ {gameObject.name} BLOCKED damage - Not locked target!</color>");
+                return; // Block damage jika tidak di-lock
+            }
+        }
 
         currentHealth -= damage;
         currentHealth = Mathf.Max(0, currentHealth);
@@ -244,6 +293,14 @@ public class EnemyHealth : MonoBehaviour
         if (isDead) return;
         
         isDead = true;
+        
+        // Immediately notify TargetingManager to switch target
+        if (targetingManager != null)
+        {
+            Debug.Log($"<color=red>💀 {gameObject.name} DIED - Requesting target switch...</color>");
+            // Force update target list immediately
+            targetingManager.SendMessage("UpdateTargetList", SendMessageOptions.DontRequireReceiver);
+        }
 
         // Death animation via EnemyAI
         EnemyAI enemyAI = GetComponent<EnemyAI>();
@@ -252,7 +309,7 @@ public class EnemyHealth : MonoBehaviour
             enemyAI.PlayDeathAnimation();
         }
 
-        // Disable collider
+        // Disable collider immediately (prevent further bullet hits)
         Collider col = GetComponent<Collider>();
         if (col != null)
         {
@@ -271,7 +328,7 @@ public class EnemyHealth : MonoBehaviour
             healthBarUI.Hide();
         }
 
-        // Destroy after delay
+        // Destroy after delay (for death animation)
         Destroy(gameObject, destroyDelay);
     }
 
@@ -279,10 +336,64 @@ public class EnemyHealth : MonoBehaviour
     {
         return currentHealth / maxHealth;
     }
+    
+    public float GetCurrentHealth()
+    {
+        return currentHealth;
+    }
+    
+    public float GetMaxHealth()
+    {
+        return maxHealth;
+    }
 
     public bool IsDead()
     {
         return isDead;
+    }
+    
+    /// <summary>
+    /// Check if this enemy is currently the locked target
+    /// </summary>
+    public bool IsLockedTarget()
+    {
+        if (targetingManager == null) 
+        {
+            // No targeting manager - allow damage (backward compatibility)
+            return true;
+        }
+        
+        Transform currentTarget = targetingManager.GetCurrentTarget();
+        if (currentTarget == null)
+        {
+            // No locked target - block damage
+            return false;
+        }
+        
+        // Check if this enemy or any parent is the locked target
+        Transform checkTransform = transform;
+        while (checkTransform != null)
+        {
+            if (checkTransform == currentTarget)
+            {
+                return true;
+            }
+            checkTransform = checkTransform.parent;
+        }
+        
+        return false;
+    }
+    
+    /// <summary>
+    /// Set shield blocking state (called by ShieldCycle)
+    /// </summary>
+    public void SetShieldBlocking(bool blocking)
+    {
+        isShieldBlocking = blocking;
+        if (blocking)
+        {
+            Debug.Log($"<color=cyan>[EnemyHealth] {gameObject.name} - Shield ACTIVE (HP locked)</color>");
+        }
     }
 
     private bool HasParameter(Animator anim, string paramName)
